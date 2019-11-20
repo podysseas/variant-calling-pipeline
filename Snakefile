@@ -8,29 +8,29 @@
 rule all:
  	input :
  		"data/ecoli_rel606.fasta",
- 		"trimmed_fastq/SRR2584866_1.trim.fastq.gz",
-		"trimmed_fastq/SRR2584866_1un.trim.fastq.gz",
-		"trimmed_fastq/SRR2584866_2.trim.fastq.gz",
-		"trimmed_fastq/SRR2584866_2un.trim.fastq.gz",
-		"trimmed_fastq/SRR2584863_1.trim.fastq.gz",
-		"trimmed_fastq/SRR2584863_1un.trim.fastq.gz",
-		"trimmed_fastq/SRR2584863_2.trim.fastq.gz",
-		"trimmed_fastq/SRR2584863_2un.trim.fastq.gz",
-		"trimmed_fastq/SRR2589044_1.trim.fastq.gz",
-		"trimmed_fastq/SRR2589044_1un.trim.fastq.gz",
-		"trimmed_fastq/SRR2589044_2.trim.fastq.gz",
-		"trimmed_fastq/SRR2589044_2un.trim.fastq.gz",
-		"trimmed_fastq/SRR2584866_1.trim.fastq",
-		# "trimmed_fastq/SRR2584866_1un.trim.fastq",
-		"trimmed_fastq/SRR2584866_2.trim.fastq",
-		# "trimmed_fastq/SRR2584866_2un.trim.fastq",
-		"trimmed_fastq/SRR2584863_1.trim.fastq",
-		# "trimmed_fastq/SRR2584863_1un.trim.fastq",
-		"trimmed_fastq/SRR2584863_2.trim.fastq",
-		# "trimmed_fastq/SRR2584863_2un.trim.fastq",
-		"trimmed_fastq/SRR2589044_1.trim.fastq",
-		# "trimmed_fastq/SRR2589044_1un.trim.fastq",
-		"trimmed_fastq/SRR2589044_2.trim.fastq",
+ 	# 	"trimmed_fastq/SRR2584866_1.trim.fastq.gz",
+		# "trimmed_fastq/SRR2584866_1un.trim.fastq.gz",
+		# "trimmed_fastq/SRR2584866_2.trim.fastq.gz",
+		# "trimmed_fastq/SRR2584866_2un.trim.fastq.gz",
+		# "trimmed_fastq/SRR2584863_1.trim.fastq.gz",
+		# "trimmed_fastq/SRR2584863_1un.trim.fastq.gz",
+		# "trimmed_fastq/SRR2584863_2.trim.fastq.gz",
+		# "trimmed_fastq/SRR2584863_2un.trim.fastq.gz",
+		# "trimmed_fastq/SRR2589044_1.trim.fastq.gz",
+		# "trimmed_fastq/SRR2589044_1un.trim.fastq.gz",
+		# "trimmed_fastq/SRR2589044_2.trim.fastq.gz",
+		# "trimmed_fastq/SRR2589044_2un.trim.fastq.gz",
+		# "trimmed_fastq/SRR2584866_1.trim.fastq",
+		# # "trimmed_fastq/SRR2584866_1un.trim.fastq",
+		# "trimmed_fastq/SRR2584866_2.trim.fastq",
+		# # "trimmed_fastq/SRR2584866_2un.trim.fastq",
+		# "trimmed_fastq/SRR2584863_1.trim.fastq",
+		# # "trimmed_fastq/SRR2584863_1un.trim.fastq",
+		# "trimmed_fastq/SRR2584863_2.trim.fastq",
+		# # "trimmed_fastq/SRR2584863_2un.trim.fastq",
+		# "trimmed_fastq/SRR2589044_1.trim.fastq",
+		# # "trimmed_fastq/SRR2589044_1un.trim.fastq",
+		# "trimmed_fastq/SRR2589044_2.trim.fastq",
 		# "trimmed_fastq/SRR2589044_2un.trim.fastq",
 		# "results/bcf/SRR2589044_raw.bcf",
 		# "results/bcf/SRR2584866_raw.bcf",
@@ -49,21 +49,23 @@ rule all:
 		"results/vcf/SRR2584866_final_variants.vcf"
 rule trimming:
 	input:
-		first="untrimmed_fastq/{sample}_1.fastq.gz"
-		#second="untrimmed_fastq/{sample}_2.fastq.gz"
+		first="untrimmed_fastq/{SAMPLES}_1.fastq.gz",
+		second="untrimmed_fastq/{SAMPLES}_2.fastq.gz"
 	output:
-		first_trimmed="trimmed_fastq/{sample}_1.trim.fastq.gz",
-		first_untrimmed="trimmed_fastq/{sample}_1un.trim.fastq.gz",
-		second_trimmed="trimmed_fastq/{sample}_2.trim.fastq.gz",
-		second_untrimmed="trimmed_fastq/{sample}_2un.trim.fastq.gz"
+		first_trimmed="trimmed_fastq/{SAMPLES}_1.trim.fastq.gz",
+		first_untrimmed="trimmed_fastq/{SAMPLES}_1un.trim.fastq.gz",
+		second_trimmed="trimmed_fastq/{SAMPLES}_2.trim.fastq.gz",
+		second_untrimmed="trimmed_fastq/{SAMPLES}_2un.trim.fastq.gz"
 	priority:40
 	shell: 
-		"trimmomatic PE {input.first} untrimmed_fastq/{wildcards.sample}_2.fastq.gz \
+		"trimmomatic PE {input.first} untrimmed_fastq/{wildcards.SAMPLES}_2.fastq.gz \
 		{output.first_trimmed} {output.first_untrimmed} {output.second_trimmed} {output.second_untrimmed}\
 		SLIDINGWINDOW:4:20 MINLEN:25 ILLUMINACLIP:NexteraPE-PE.fa:2:40:15"
     #  use a sliding window of size 4 that will remove bases if their phred 
     #  score is below 20 and discard any reads that do not have at least 25 bases 
     #  remaining after this trimming step.
+# run:
+#        if {wildcards.variant_status} == 'Somatic':
 rule indexing:                                     
 	input: 
 		gen="ecoli_rel606.fasta"
@@ -85,12 +87,13 @@ rule gun_zipping:
 rule align_reads:
 	input: 
 		first="trimmed_fastq/{SAMPLES}_1.trim.fastq",
+		second ="trimmed_fastq/{SAMPLES}_2.trim.fastq",
 		gen="ecoli_rel606.fasta"
 	output:
 		"results/sam/{SAMPLES}.aligned.sam"
 	priority:20
 	shell:
-		 "bwa mem {input.gen} {input.first} trimmed_fastq/{wildcards.SAMPLES}_2.trim.fastq > {output}"
+		 "bwa mem {input.gen} {input.first} {input.second}> {output}"
 rule convert_to_sam:
 	input:
 		"results/sam/{SAMPLES}.aligned.sam"
