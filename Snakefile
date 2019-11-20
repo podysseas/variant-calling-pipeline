@@ -21,17 +21,17 @@ rule all:
 		"trimmed_fastq/SRR2589044_2.trim.fastq.gz",
 		"trimmed_fastq/SRR2589044_2un.trim.fastq.gz",
 		"trimmed_fastq/SRR2584866_1.trim.fastq",
-		"trimmed_fastq/SRR2584866_1un.trim.fastq",
+		# "trimmed_fastq/SRR2584866_1un.trim.fastq",
 		"trimmed_fastq/SRR2584866_2.trim.fastq",
-		"trimmed_fastq/SRR2584866_2un.trim.fastq",
+		# "trimmed_fastq/SRR2584866_2un.trim.fastq",
 		"trimmed_fastq/SRR2584863_1.trim.fastq",
-		"trimmed_fastq/SRR2584863_1un.trim.fastq",
+		# "trimmed_fastq/SRR2584863_1un.trim.fastq",
 		"trimmed_fastq/SRR2584863_2.trim.fastq",
-		"trimmed_fastq/SRR2584863_2un.trim.fastq",
+		# "trimmed_fastq/SRR2584863_2un.trim.fastq",
 		"trimmed_fastq/SRR2589044_1.trim.fastq",
-		"trimmed_fastq/SRR2589044_1un.trim.fastq",
+		# "trimmed_fastq/SRR2589044_1un.trim.fastq",
 		"trimmed_fastq/SRR2589044_2.trim.fastq",
-		"trimmed_fastq/SRR2589044_2un.trim.fastq",
+		# "trimmed_fastq/SRR2589044_2un.trim.fastq",
 		# "results/bcf/SRR2589044_raw.bcf",
 		# "results/bcf/SRR2584866_raw.bcf",
 		# "results/bcf/SRR2584863_raw.bcf",
@@ -93,42 +93,42 @@ rule align_reads:
 		 "bwa mem {input.gen} {input.first} trimmed_fastq/{wildcards.SAMPLES}_2.trim.fastq > {output}"
 rule convert_to_sam:
 	input:
-		"results/sam/{C_SAMPLES}.aligned.sam"
+		"results/sam/{SAMPLES}.aligned.sam"
 	output:
-		"results/bam/{C_SAMPLES}.aligned.bam"
+		"results/bam/{SAMPLES}.aligned.bam"
 	priority:10
 	shell:
 		"samtools view -S -b {input} > {output}"
 rule sorting:
 	input:
-		"results/bam/{S_SAMPLES}.aligned.bam"
+		"results/bam/{SAMPLES}.aligned.bam"
 	output:
-		"results/bam/{S_SAMPLES}.aligned.sorted.bam"
+		"results/bam/{SAMPLES}.aligned.sorted.bam"
 	priority:5
 	shell:
 		"samtools sort -o {output} {input}"
 rule variant_calling_first_step:
 	input:
 		gen="ecoli_rel606.fasta",
-		sort="results/bam/{V_SAMPLES}.aligned.sorted.bam"
+		sort="results/bam/{SAMPLES}.aligned.sorted.bam"
 	output:
-		bcf="results/bcf/{V_SAMPLES}_raw.bcf"
+		bcf="results/bcf/{SAMPLES}_raw.bcf"
 	priority:4
 	shell:
 		"bcftools mpileup -O b -o {output.bcf} -f {input.gen} {input.sort}"
 rule detect_polymorphisms:
 	input:
-		bcf="results/bcf/{V_SAMPLES}_raw.bcf"
+		bcf="results/bcf/{SAMPLES}_raw.bcf"
 	output:
-		variants="results/bcf/{V_SAMPLES}_variants.vcf"
+		variants="results/bcf/{SAMPLES}_variants.vcf"
 	priority:3
 	shell:
 		"bcftools call --ploidy 1 -m -v -o {output.variants} {input.bcf}"
 rule Filter_and_report:
 	input:
-		variants="results/bcf/{V_SAMPLES}_variants.vcf"
+		variants="results/bcf/{SAMPLES}_variants.vcf"
 	output:
-		f_variants="results/vcf/{V_SAMPLES}_final_variants.vcf"
+		f_variants="results/vcf/{SAMPLES}_final_variants.vcf"
 	priority:2
 	shell:										
 		"vcfutils.pl varFilter {input.variants}  > {output.f_variants}"
