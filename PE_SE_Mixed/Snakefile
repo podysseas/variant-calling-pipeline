@@ -8,7 +8,7 @@ from glob import glob
 rule all:
  	input :
  		"data/ecoli_rel606.fasta",
-		"results/vcf/SRR2589044/SE/SRR2589044_final_variants.vcf",
+		"results/vcf/SRR2589044/PE/SRR2589044_final_variants.vcf",
 		"results/vcf/SRR2584863/PE/SRR2584863_final_variants.vcf",
 		"results/vcf/SRR2584866/SE/SRR2584866_final_variants.vcf"
 rule indexing:                                     
@@ -32,10 +32,10 @@ rule trimming:
 		shell("mkdir -p {output.d}")
 		if len(input) > 1:
 				shell("trimmomatic PE -basein {input[0]} -baseout {output.d}/{wildcards.SAMPLES}.trim.fastq \
-						SLIDINGWINDOW:4:20 MINLEN:25 ILLUMINACLIP:NexteraPE-PE.fa:2:40:15")
+						SLIDINGWINDOW:4:20 MINLEN:25 ILLUMINACLIP:NexteraPE-PE.fa:2:40:15 ")
 		else:
 				shell("trimmomatic SE {input[0]} {output.d}/{wildcards.SAMPLES}.trim.fastq \
-						SLIDINGWINDOW:4:20 MINLEN:25 ILLUMINACLIP:NexteraPE-PE.fa:2:40:15") 
+						SLIDINGWINDOW:4:20 MINLEN:25 ILLUMINACLIP:NexteraPE-PE.fa:2:40:15 ") 
 rule align_reads_SE:
 	input:
 		d="trimmed_fastq/{SAMPLES}/SE",
@@ -74,7 +74,7 @@ rule sorting:
 		"results/bam/{SAMPLES}/{group}/{SAMPLES}.aligned.sorted.bam"
 	priority:5
 	run:
-		shell("samtools sort -o {output} {input}")
+		shell("samtools sort -o {output} {input} >> Report.txt")
 rule variant_calling_first_step:
 	input:
 		gen="ecoli_rel606.fasta",
@@ -84,7 +84,7 @@ rule variant_calling_first_step:
 	priority:4
 	run:
 		shell("mkdir -p results/bcf/{wildcards.SAMPLES}/{wildcards.group}")
-		shell("bcftools mpileup -O b -o {output.bcf} -f {input.gen} {input.sort}")
+		shell("bcftools mpileup -O b -o {output.bcf} -f {input.gen} {input.sort} >> Report.txt")
 rule detect_polymorphisms:
 	input:
 		bcf="results/bcf/{SAMPLES}/{group}/{SAMPLES}_raw.bcf"
@@ -101,4 +101,4 @@ rule Filter_and_report:
 	priority:2
 	run:										
 		shell("mkdir results/vcf/{wildcards.SAMPLES}/{wildcards.group}/ ")
-		shell("vcfutils.pl varFilter {input.variants}  > {output.f_variants}")
+		shell("vcfutils.pl varFilter {input.variants}  > {output.f_variants} >>Report.txtDD")
