@@ -66,7 +66,7 @@ rule convert_to_bam:
 	priority:10 
 	run:
 		shell("mkdir -p results/bam/{wildcards.SAMPLES}/{wildcards.group}/")
-		shell("samtools view -S -b {input}/{wildcards.SAMPLES}.aligned.sam > {output}")
+		shell("samtools view -S -b {input.d} > {output}")
 rule sorting:
 	input:
 		d="results/bam/{SAMPLES}/{group}/{SAMPLES}.aligned.bam"
@@ -100,5 +100,5 @@ rule Filter_and_report:
 		f_variants="results/vcf/{SAMPLES}/{group}/{SAMPLES}_final_variants.vcf"
 	priority:2
 	run:										
-		shell("mkdir results/vcf/{wildcards.SAMPLES}/{wildcards.group}/ ")
+		shell("mkdir -p results/vcf/{wildcards.SAMPLES}/{wildcards.group}/ ")
 		shell("vcfutils.pl varFilter {input.variants}  > {output.f_variants} >>Report.txtDD")
