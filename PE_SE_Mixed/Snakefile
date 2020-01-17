@@ -1,0 +1,104 @@
+# workflow implementation with Snakemake based on DC Genomic lesson 
+
+# the target files should be :
+# results/vcf/<sample_name>/<single or pair end>/<sample_name>_final_variants.vcf"
+
+import os 
+from glob import glob
+rule all:
+ 	input :
+ 		"data/ecoli_rel606.fasta",
+		"results/vcf/SRR2589044/PE/SRR2589044_final_variants.vcf",
+		"results/vcf/SRR2584863/PE/SRR2584863_final_variants.vcf",
+		"results/vcf/SRR2584866/SE/SRR2584866_final_variants.vcf"
+rule indexing:                                     
+	input: 
+		gen="ecoli_rel606.fasta"
+	output:
+		indexed="data/ecoli_rel606.fasta" # problem with cyclic dependency,that's why should be in another folder 
+	priority: 50
+	run:
+		shell("mkdir -p data")
+		shell("bwa index {input.gen} > {output.indexed}")
+rule trimming:
+	input:
+		lambda wildcards:glob('untrimmed_fastq/{SAMPLES}*.fastq.gz'.format(SAMPLES=wildcards.SAMPLES))
+	output:
+		d=directory("trimmed_fastq/{SAMPLES}/{GROUP}")
+	# we should have only one directory as output 
+	priority:40
+	run:
+		shell("mkdir {output.d}")
+		shell("mkdir -p {output.d}")
+		if len(input) > 1:
+				shell("trimmomatic PE -basein {input[0]} -baseout {output.d}/{wildcards.SAMPLES}.trim.fastq \
+						SLIDINGWINDOW:4:20 MINLEN:25 ILLUMINACLIP:NexteraPE-PE.fa:2:40:15 ")
+		else:
+				shell("trimmomatic SE {input[0]} {output.d}/{wildcards.SAMPLES}.trim.fastq \
+						SLIDINGWINDOW:4:20 MINLEN:25 ILLUMINACLIP:NexteraPE-PE.fa:2:40:15 ") 
+rule align_reads_SE:
+	input:
+		d="trimmed_fastq/{SAMPLES}/SE",
+		gen="ecoli_rel606.fasta"	
+	output:
+		"results/sam/{SAMPLES}/SE/{SAMPLES}.aligned.sam"
+	priority:20
+	run:
+		shell("mkdir -p results/sam/{wildcards.SAMPLES}/SE")
+		shell("bwa mem {input.gen} {input.d}/{wildcards.SAMPLES}.trim.fastq > {output}")
+		# single end cases 
+rule align_reads_PE:
+	input:
+		d="trimmed_fastq/{SAMPLES}/PE",
+		gen="ecoli_rel606.fasta"	
+	output:
+		"results/sam/{SAMPLES}/PE/{SAMPLES}.aligned.sam"
+	priority:20
+	run:
+		shell("mkdir -p results/sam/{wildcards.SAMPLES}/PE")
+		shell("bwa mem {input.gen} {input.d}/{wildcards.SAMPLES}.trim_1P.fastq {input.d}/{wildcards.SAMPLES}.trim_2P.fastq \
+				> {output}")
+rule convert_to_bam:
+	input:
+		d="results/sam/{SAMPLES}/{group}/{SAMPLES}.aligned.sam"
+	output:
+		"results/bam/{SAMPLES}/{group}/{SAMPLES}.aligned.bam"
+	priority:10 
+	run:
+		shell("mkdir -p results/bam/{wildcards.SAMPLES}/{wildcards.group}/")
+		shell("samtools view -S -b {input.d} > {output}")
+rule sorting:
+	input:
+		d="results/bam/{SAMPLES}/{group}/{SAMPLES}.aligned.bam"
+	output:
+		"results/bam/{SAMPLES}/{group}/{SAMPLES}.aligned.sorted.bam"
+	priority:5
+	run:
+		shell("samtools sort -o {output} {input} >> Report.txt")
+rule variant_calling_first_step:
+	input:
+		gen="ecoli_rel606.fasta",
+		sort="results/bam/{SAMPLES}/{group}/{SAMPLES}.aligned.sorted.bam"
+	output:
+		bcf="results/bcf/{SAMPLES}/{group}/{SAMPLES}_raw.bcf"
+	priority:4
+	run:
+		shell("mkdir -p results/bcf/{wildcards.SAMPLES}/{wildcards.group}")
+		shell("bcftools mpileup -O b -o {output.bcf} -f {input.gen} {input.sort} >> Report.txt")
+rule detect_polymorphisms:
+	input:
+		bcf="results/bcf/{SAMPLES}/{group}/{SAMPLES}_raw.bcf"
+	output:
+		variants="results/bcf/{SAMPLES}/{group}/{SAMPLES}_variants.vcf"
+	priority:3
+	shell:
+		"bcftools call --ploidy 1 -m -v -o {output.variants} {input.bcf}"
+rule Filter_and_report:
+	input:
+		variants="results/bcf/{SAMPLES}/{group}/{SAMPLES}_variants.vcf"
+	output:
+		f_variants="results/vcf/{SAMPLES}/{group}/{SAMPLES}_final_variants.vcf"
+	priority:2
+	run:										
+		shell("mkdir -p results/vcf/{wildcards.SAMPLES}/{wildcards.group}/ ")
+		shell("vcfutils.pl varFilter {input.variants}  > {output.f_variants} >>Report.txtDD")
